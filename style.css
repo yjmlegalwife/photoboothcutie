@@ -1,0 +1,124 @@
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #ffd1dc, #e0f7fa); /* Soft pastel gradient */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 48px;
+  color: #ff69b4; /* Soft cute pink */
+  font-weight: 600;
+}
+
+p {
+  font-size: 18px;
+  color: #ff4081; /* Soft pink */
+}
+
+.intro-container {
+  text-align: center;
+  margin-top: 50px;
+}
+
+label, select {
+  font-size: 18px;
+  color: #e91e63; /* Kawaii pink color */
+  margin-top: 10px;
+}
+
+input[type="file"] {
+  font-size: 16px;
+  margin: 20px 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid #ff4081;
+  background-color: #fff;
+}
+
+button {
+  padding: 12px 20px;
+  font-size: 20px;
+  background-color: #ff4081;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background-color: #e91e63;
+  transform: scale(1.05);
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+.photobooth {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+  position: relative;
+  width: 350px;
+  height: 600px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+#video {
+  border-radius: 15px;
+  width: 100%;
+  height: 100%;
+}
+
+#countdownDisplay {
+  font-size: 48px;
+  color: #ff69b4;
+  margin: 20px 0;
+  font-weight: 600;
+  animation: countdownAnimation 1s ease-out;
+}
+
+.photos {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+  align-items: center;
+}
+
+.photos img {
+  border-radius: 10px;
+  margin: 5px 0;
+  max-width: 300px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+canvas {
+  display: none;
+}
+
+#backgroundImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  object-fit: cover;
+}
+
+/* Countdown animation */
+@keyframes countdownAnimation {
+  0% { transform: scale(1); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 1; }
+}
