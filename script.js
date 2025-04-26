@@ -69,9 +69,10 @@ function takeSnapshot() {
   canvas.height = video.videoHeight;
 
   // Draw template if available
-  if (templateImage) {
-    ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
-  }
+  if (templateImage && templateImage.complete) {
+  ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+}
+ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
