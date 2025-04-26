@@ -64,14 +64,22 @@ function capturePhoto(photosLeft) {
 }
 
 function takeSnapshot() {
-  const ctx = canvas.getContext("2d");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-  // Draw template if available
-  if (templateImage && templateImage.complete) {
-  ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+    // 1. Draw camera first
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 2. Then if template is ready, draw template ON TOP
+    if (templateImage && templateImage.complete) {
+        ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    return canvas;
 }
+
 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
