@@ -45,12 +45,6 @@
       color: #ff6e6e;
       margin: 20px 0;
     }
-    .photostrip img {
-      margin-bottom: 15px;
-      width: 360px;
-      border-radius: 15px;
-      border: 4px solid #ff8f8f;
-    }
     .photo-buttons {
       margin-bottom: 30px;
     }
@@ -61,6 +55,15 @@
       background: white;
       display: none;
       z-index: 10;
+    }
+    #photostrip {
+      margin-top: 20px;
+    }
+    #photostrip img {
+      width: 300px;
+      border-radius: 15px;
+      border: 4px solid #ff8f8f;
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -86,8 +89,9 @@
 
 <button onclick="startPhotoSession()">Start Photobooth!</button>
 <button onclick="downloadPhotostrip()">Download Photostrip</button>
+<button onclick="downloadVideo()">Download Session Video</button>
 
-<div class="photostrip" id="photostrip"></div>
+<div id="photostrip"></div>
 
 <canvas id="canvas" style="display:none;"></canvas>
 
@@ -100,8 +104,9 @@ let flash = document.getElementById('flash');
 let photostrip = document.getElementById('photostrip');
 let countdownTime = document.getElementById('countdownTime');
 let templateImage = null;
+let capturedPhotos = [];
 
-// --- Correct camera access here ---
+// --- Camera Access ---
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "user" },
   audio: false
@@ -115,7 +120,7 @@ navigator.mediaDevices.getUserMedia({
   alert('Cannot access camera. Please allow camera permission.');
 });
 
-// Handle template upload
+// --- Handle Template Upload ---
 document.getElementById('templateUpload').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -127,52 +132,64 @@ document.getElementById('templateUpload').addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-// Start photobooth session
+// --- Start Photobooth Session ---
 async function startPhotoSession() {
-  let countdown = parseInt(countdownTime.value);
+  capturedPhotos = [];
+  photostrip.innerHTML = '';
 
-  while (countdown > 0) {
-    countdownEl.textContent = countdown;
+  // Start recording screen
+  startRecording();
+
+  for (let i = 0; i < 4; i++) {
+    await countdownAndPhoto();
+    await new Promise(res => setTimeout(res, 1000)); // small wait after photo
+  }
+
+  stopRecording();
+}
+
+// --- Countdown and Take Photo ---
+async function countdownAndPhoto() {
+  let count = parseInt(countdownTime.value);
+  while (count > 0) {
+    countdownEl.textContent = count;
     countdownEl.style.transform = 'scale(1.2)';
     await new Promise(res => setTimeout(res, 800));
     countdownEl.style.transform = 'scale(1)';
     await new Promise(res => setTimeout(res, 200));
-    countdown--;
+    count--;
   }
-
   countdownEl.textContent = '';
   takePhoto();
 }
 
-// Take a photo
+// --- Take a Photo ---
 function takePhoto() {
   flashScreen();
 
-  // Set canvas size
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
-  // Mirror the context
   ctx.save();
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
-
-  // Draw video frame
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   ctx.restore();
 
-  // If template uploaded, draw it ON TOP
   if (templateImage) {
     ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
   }
 
   let imgUrl = canvas.toDataURL('image/png');
+  capturedPhotos.push(imgUrl);
+
+  // Preview
   let img = document.createElement('img');
   img.src = imgUrl;
   photostrip.appendChild(img);
 }
 
-// Flash effect
+// --- Flash Effect ---
 function flashScreen() {
   flash.style.display = 'block';
   setTimeout(() => {
@@ -180,29 +197,74 @@ function flashScreen() {
   }, 100);
 }
 
-// Download all photos
+// --- Download Photostrip ---
 function downloadPhotostrip() {
-  const images = photostrip.querySelectorAll('img');
-  if (images.length === 0) return;
+  if (capturedPhotos.length === 0) return;
 
-  const downloadCanvas = document.createElement('canvas');
-  const ctx2 = downloadCanvas.getContext('2d');
-  const imgWidth = images[0].width;
-  const imgHeight = images[0].height;
-  const gap = 20;
-  downloadCanvas.width = imgWidth;
-  downloadCanvas.height = (imgHeight + gap) * images.length - gap;
+  const img = new Image();
+  img.src = capturedPhotos[0];
+  img.onload = () => {
+    const width = img.width;
+    const height = img.height;
+    const gap = 20;
 
-  images.forEach((img, index) => {
-    ctx2.drawImage(img, 0, index * (imgHeight + gap), imgWidth, imgHeight);
-  });
+    const stripCanvas = document.createElement('canvas');
+    stripCanvas.width = width;
+    stripCanvas.height = (height + gap) * capturedPhotos.length - gap;
+
+    const stripCtx = stripCanvas.getContext('2d');
+    capturedPhotos.forEach((src, index) => {
+      const photo = new Image();
+      photo.src = src;
+      photo.onload = () => {
+        stripCtx.drawImage(photo, 0, index * (height + gap), width, height);
+        if (index === capturedPhotos.length - 1) {
+          const link = document.createElement('a');
+          link.download = 'photostrip.png';
+          link.href = stripCanvas.toDataURL();
+          link.click();
+        }
+      };
+    });
+  };
+}
+
+// --- Screen Recording ---
+let mediaRecorder;
+let recordedChunks = [];
+
+function startRecording() {
+  const stream = document.body.captureStream(30); // Capture whole page at 30 FPS
+  mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+  mediaRecorder.ondataavailable = function(e) {
+    if (e.data.size > 0) {
+      recordedChunks.push(e.data);
+    }
+  };
+
+  mediaRecorder.start();
+}
+
+function stopRecording() {
+  mediaRecorder.stop();
+}
+
+// --- Download the Session Video ---
+function downloadVideo() {
+  if (recordedChunks.length === 0) return;
+  const blob = new Blob(recordedChunks, { type: 'video/webm' });
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
-  link.download = 'photostrip.png';
-  link.href = downloadCanvas.toDataURL();
+  link.href = url;
+  link.download = 'session_video.webm';
   link.click();
+
+  recordedChunks = [];
 }
 </script>
 
 </body>
 </html>
+
