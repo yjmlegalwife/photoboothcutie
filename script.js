@@ -6,8 +6,7 @@ let flash = document.getElementById('flash');
 let photostrip = document.getElementById('photostrip');
 let countdownTime = document.getElementById('countdownTime');
 let templateImage = null;
-let recordedChunks = [];
-let mediaRecorder;
+let capturedPhotos = [];
 
 // --- Camera Access ---
 navigator.mediaDevices.getUserMedia({
@@ -37,8 +36,10 @@ document.getElementById('templateUpload').addEventListener('change', (e) => {
 
 // --- Start Photobooth Session ---
 async function startPhotoSession() {
+  capturedPhotos = [];
   photostrip.innerHTML = '';
-  recordedChunks = [];
+
+  // Start recording screen
   startRecording();
 
   for (let i = 0; i < 4; i++) {
@@ -82,6 +83,8 @@ function takePhoto() {
   }
 
   let imgUrl = canvas.toDataURL('image/png');
+  capturedPhotos.push(imgUrl);
+
   // Preview
   let img = document.createElement('img');
   img.src = imgUrl;
@@ -98,40 +101,50 @@ function flashScreen() {
 
 // --- Download Photostrip ---
 function downloadPhotostrip() {
-  if (photostrip.children.length === 0) return;
+  if (capturedPhotos.length === 0) return;
 
-  const stripCanvas = document.createElement('canvas');
-  const width = photostrip.children[0].width; // Get photo width
-  const height = photostrip.children[0].height;
-  const gap = 20;
-  const totalHeight = (height + gap) * photostrip.children.length - gap;
-  stripCanvas.width = width;
-  stripCanvas.height = totalHeight;
+  const img = new Image();
+  img.src = capturedPhotos[0];
+  img.onload = () => {
+    const width = img.width;
+    const height = img.height;
+    const gap = 20;
 
-  const stripCtx = stripCanvas.getContext('2d');
-  let y = 0;
-  Array.from(photostrip.children).forEach((img, index) => {
-    stripCtx.drawImage(img, 0, y, width, height);
-    y += height + gap;
-    if (index === photostrip.children.length - 1) {
-      const link = document.createElement('a');
-      link.download = 'photostrip.png';
-      link.href = stripCanvas.toDataURL();
-      link.click();
-    }
-  });
+    const stripCanvas = document.createElement('canvas');
+    stripCanvas.width = width;
+    stripCanvas.height = (height + gap) * capturedPhotos.length - gap;
+
+    const stripCtx = stripCanvas.getContext('2d');
+    capturedPhotos.forEach((src, index) => {
+      const photo = new Image();
+      photo.src = src;
+      photo.onload = () => {
+        stripCtx.drawImage(photo, 0, index * (height + gap), width, height);
+        if (index === capturedPhotos.length - 1) {
+          const link = document.createElement('a');
+          link.download = 'photostrip.png';
+          link.href = stripCanvas.toDataURL();
+          link.click();
+        }
+      };
+    });
+  };
 }
 
 // --- Screen Recording ---
+let mediaRecorder;
+let recordedChunks = [];
+
 function startRecording() {
-  const stream = video.srcObject; // Use the video stream directly
-  mediaRecorder = new MediaRecorder(stream);
-  
+  const stream = document.body.captureStream(30); // Capture whole page at 30 FPS
+  mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
   mediaRecorder.ondataavailable = function(e) {
     if (e.data.size > 0) {
       recordedChunks.push(e.data);
     }
   };
+
   mediaRecorder.start();
 }
 
@@ -139,7 +152,7 @@ function stopRecording() {
   mediaRecorder.stop();
 }
 
-// --- Download Session Video ---
+// --- Download the Session Video ---
 function downloadVideo() {
   if (recordedChunks.length === 0) return;
   const blob = new Blob(recordedChunks, { type: 'video/webm' });
