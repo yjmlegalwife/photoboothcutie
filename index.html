@@ -44,6 +44,7 @@
       font-size: 6rem;
       color: #ff6e6e;
       margin: 20px 0;
+      transition: transform 0.2s;
     }
     .photo-buttons {
       margin-bottom: 30px;
@@ -106,7 +107,10 @@ let countdownTime = document.getElementById('countdownTime');
 let templateImage = null;
 let capturedPhotos = [];
 
-// --- Camera Access ---
+let mediaRecorder;
+let recordedChunks = [];
+
+// --- Access Camera ---
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "user" },
   audio: false
@@ -135,14 +139,14 @@ document.getElementById('templateUpload').addEventListener('change', (e) => {
 // --- Start Photobooth Session ---
 async function startPhotoSession() {
   capturedPhotos = [];
+  recordedChunks = [];
   photostrip.innerHTML = '';
 
-  // Start recording screen
   startRecording();
 
   for (let i = 0; i < 4; i++) {
     await countdownAndPhoto();
-    await new Promise(res => setTimeout(res, 1000)); // small wait after photo
+    await new Promise(res => setTimeout(res, 500)); // slight wait after photo
   }
 
   stopRecording();
@@ -180,11 +184,11 @@ function takePhoto() {
     ctx.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
   }
 
-  let imgUrl = canvas.toDataURL('image/png');
+  const imgUrl = canvas.toDataURL('image/png');
   capturedPhotos.push(imgUrl);
 
-  // Preview
-  let img = document.createElement('img');
+  // Show preview
+  const img = document.createElement('img');
   img.src = imgUrl;
   photostrip.appendChild(img);
 }
@@ -199,42 +203,41 @@ function flashScreen() {
 
 // --- Download Photostrip ---
 function downloadPhotostrip() {
-  if (capturedPhotos.length === 0) return;
+  if (capturedPhotos.length === 0) {
+    alert('No photos to download!');
+    return;
+  }
 
-  const img = new Image();
-  img.src = capturedPhotos[0];
-  img.onload = () => {
-    const width = img.width;
-    const height = img.height;
-    const gap = 20;
+  const width = 300;
+  const height = 400; // Approximate, depends on your video size
+  const spacing = 20;
+  const totalHeight = (height + spacing) * capturedPhotos.length - spacing;
 
-    const stripCanvas = document.createElement('canvas');
-    stripCanvas.width = width;
-    stripCanvas.height = (height + gap) * capturedPhotos.length - gap;
+  const stripCanvas = document.createElement('canvas');
+  const stripCtx = stripCanvas.getContext('2d');
+  stripCanvas.width = width;
+  stripCanvas.height = totalHeight;
 
-    const stripCtx = stripCanvas.getContext('2d');
-    capturedPhotos.forEach((src, index) => {
-      const photo = new Image();
-      photo.src = src;
-      photo.onload = () => {
-        stripCtx.drawImage(photo, 0, index * (height + gap), width, height);
-        if (index === capturedPhotos.length - 1) {
-          const link = document.createElement('a');
-          link.download = 'photostrip.png';
-          link.href = stripCanvas.toDataURL();
-          link.click();
-        }
-      };
-    });
-  };
+  let loaded = 0;
+  capturedPhotos.forEach((src, index) => {
+    const img = new Image();
+    img.onload = () => {
+      stripCtx.drawImage(img, 0, index * (height + spacing), width, height);
+      loaded++;
+      if (loaded === capturedPhotos.length) {
+        const link = document.createElement('a');
+        link.download = 'photostrip.png';
+        link.href = stripCanvas.toDataURL();
+        link.click();
+      }
+    };
+    img.src = src;
+  });
 }
 
 // --- Screen Recording ---
-let mediaRecorder;
-let recordedChunks = [];
-
 function startRecording() {
-  const stream = document.body.captureStream(30); // Capture whole page at 30 FPS
+  const stream = document.body.captureStream(30);
   mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
 
   mediaRecorder.ondataavailable = function(e) {
@@ -247,12 +250,18 @@ function startRecording() {
 }
 
 function stopRecording() {
-  mediaRecorder.stop();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
 }
 
-// --- Download the Session Video ---
+// --- Download Session Video ---
 function downloadVideo() {
-  if (recordedChunks.length === 0) return;
+  if (recordedChunks.length === 0) {
+    alert('No recording available!');
+    return;
+  }
+
   const blob = new Blob(recordedChunks, { type: 'video/webm' });
   const url = URL.createObjectURL(blob);
 
@@ -261,7 +270,8 @@ function downloadVideo() {
   link.download = 'session_video.webm';
   link.click();
 
-  recordedChunks = [];
+  URL.revokeObjectURL(url);
+  recordedChunks = []; // Clear after download
 }
 </script>
 
