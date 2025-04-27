@@ -118,6 +118,7 @@ navigator.mediaDevices.getUserMedia({
 .then(stream => {
   video.srcObject = stream;
   video.play();
+  console.log('Camera Access Success');
 })
 .catch(err => {
   console.error('Error accessing camera:', err);
@@ -138,18 +139,22 @@ document.getElementById('templateUpload').addEventListener('change', (e) => {
 
 // --- Start Photobooth Session ---
 async function startPhotoSession() {
+  console.log('Starting Photo Session');
   capturedPhotos = [];
   recordedChunks = [];
   photostrip.innerHTML = '';
 
+  // Start recording
   startRecording();
 
   for (let i = 0; i < 4; i++) {
+    console.log(`Taking photo ${i+1}`);
     await countdownAndPhoto();
     await new Promise(res => setTimeout(res, 500)); // slight wait after photo
   }
 
   stopRecording();
+  console.log('Session Finished');
 }
 
 // --- Countdown and Take Photo ---
@@ -169,6 +174,7 @@ async function countdownAndPhoto() {
 
 // --- Take a Photo ---
 function takePhoto() {
+  console.log('Taking a photo...');
   flashScreen();
 
   canvas.width = video.videoWidth;
@@ -247,11 +253,13 @@ function startRecording() {
   };
 
   mediaRecorder.start();
+  console.log('Recording started...');
 }
 
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
+    console.log('Recording stopped...');
   }
 }
 
@@ -277,4 +285,3 @@ function downloadVideo() {
 
 </body>
 </html>
-
