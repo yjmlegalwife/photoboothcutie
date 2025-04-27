@@ -12,8 +12,8 @@ const templateUpload = document.getElementById("templateUpload");
 
 let templateImage = null;
 
-// Load template
-templateUpload.addEventListener("change", (e) => {
+// Load background template
+templateUpload.addEventListener("change", e => {
   const file = e.target.files[0];
   if (file) {
     const reader = new FileReader();
@@ -25,27 +25,26 @@ templateUpload.addEventListener("change", (e) => {
   }
 });
 
-// Access webcam (with mirror effect)
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
-  .then((s) => {
+// Access webcam (mirror the camera)
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  .then(s => {
     stream = s;
     video.srcObject = stream;
-    video.play();
-  })
-  .catch((err) => {
-    alert("Camera access denied.");
-    console.error(err);
-  });
 
-// Start the photobooth session
+    // Mirror the video element
+    video.style.transform = "scaleX(-1)";
+  })
+  .catch(err => alert("Camera access denied."));
+
+// Start photo session
 function startPhotoSession() {
   photostrip.innerHTML = "";
   recordedChunks = [];
   startRecording();
-  capturePhoto(4);
+  capturePhoto(4); // Capture 4 photos
 }
 
-// Recursive photo capture
+// Capture each photo with countdown
 function capturePhoto(photosLeft) {
   if (photosLeft === 0) {
     stopRecording();
@@ -81,12 +80,11 @@ function takeSnapshot() {
   ctx.translate(snapCanvas.width, 0);
   ctx.scale(-1, 1);
 
-  // Draw video frame
   ctx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
 
-  // Draw template if uploaded
+  // Draw template on top (reset transform first)
   if (templateImage && templateImage.complete) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset mirror
     ctx.drawImage(templateImage, 0, 0, snapCanvas.width, snapCanvas.height);
   }
 
@@ -96,6 +94,7 @@ function takeSnapshot() {
   img.src = imgURL;
   photostrip.appendChild(img);
 
+  // Add Download Button for each photo
   const btnDiv = document.createElement("div");
   btnDiv.className = "photo-buttons";
 
@@ -111,7 +110,7 @@ function takeSnapshot() {
   photostrip.appendChild(btnDiv);
 }
 
-// Flash effect
+// Flash white screen when taking photo
 function flashScreen() {
   flash.style.display = "block";
   setTimeout(() => {
@@ -119,35 +118,40 @@ function flashScreen() {
   }, 100);
 }
 
-// Combine into photostrip
+// Download full photostrip
 function downloadPhotostrip() {
-  const stripCanvas = document.getElementById("canvas");
-  const ctx = stripCanvas.getContext("2d");
+  const ctx = canvas.getContext("2d");
   const width = 360;
+  const images = photostrip.querySelectorAll("img");
+
+  if (images.length === 0) {
+    alert("No photos to download!");
+    return;
+  }
+
   const height = (video.videoHeight / video.videoWidth) * width;
   const spacing = 20;
-  const totalHeight = (height * 4) + (spacing * 3);
-  stripCanvas.width = width;
-  stripCanvas.height = totalHeight;
+  const totalHeight = (height * images.length) + (spacing * (images.length - 1));
+  
+  canvas.width = width;
+  canvas.height = totalHeight;
 
-  const images = photostrip.querySelectorAll("img");
   let y = 0;
-
-  images.forEach((img) => {
+  images.forEach(img => {
     ctx.drawImage(img, 0, y, width, height);
     y += height + spacing;
   });
 
   const link = document.createElement("a");
-  link.href = stripCanvas.toDataURL("image/png");
+  link.href = canvas.toDataURL("image/png");
   link.download = "photostrip.png";
   link.click();
 }
 
-// Start recording camera
+// Start recording video
 function startRecording() {
-  mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
-  mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
   mediaRecorder.onstop = saveVideo;
   mediaRecorder.start();
 }
@@ -159,7 +163,7 @@ function stopRecording() {
   }
 }
 
-// Save recorded video
+// Save video
 function saveVideo() {
   const blob = new Blob(recordedChunks, { type: "video/webm" });
   const url = URL.createObjectURL(blob);
